@@ -1,58 +1,35 @@
-local websockets = require "gamesense/websockets"
+local ui_get, exec, uid_eindex, local_player = ui.get, client.exec, client.userid_to_entindex, entity.get_local_player
 
--- sample echo server provided by https://websocket.org/echo.html
-local DEFAULT_URL = "wss://echo.websocket.org"
-local websocket_connection
-
-local callbacks = {
-	open = function(ws)
-		print("[WS] connection to ", ws.url, " opened!")
-
-		websocket_connection = ws
-	end,
-	message = function(ws, data)
-		print("[WS] Got message: ", data)
-	end,
-	close = function(ws, code, reason, was_clean)
-		print("[WS] Connection closed: code=", code, " reason=", reason, " was_clean=", was_clean)
-
-		websocket_connection = nil
-	end,
-	error = function(ws, err)
-		print("[WS] Error: ", err)
-
-		websocket_connection = nil
-	end
+local hitsounds = {
+    "-",
+    "Default",
+    "LUA error",
+    "Warning",
+    "Custom"
 }
 
-client.set_event_callback("console_input", function(text)
-	if text:match("^ws_open") then
-		if websocket_connection == nil then
-			local url = text:match("^ws_open (.+)$") or DEFAULT_URL
-			websockets.connect(url, callbacks)
+local hitsound  = ui.new_combobox("Visuals", "Player ESP", "Hit sound", hitsounds)
 
-			print("[WS] Connecting to ", url)
-		else
-			print("[WS] Connection already open.")
-		end
+client.set_event_callback("player_hurt", function(e)
+    local hitsound_get = ui_get(hitsound)
 
-		return true
-	elseif text:match("^ws_close") then
-		if websocket_connection ~= nil then
-			websocket_connection:close()
+    if hitsound_get == "-" then return end
+    
+    local attacker = e.attacker
+    
+    if attacker == nil then return end
 
-			print("[WS] Closing connection")
-		else
-			print("[WS] No open WebSocket connection.")
-		end
+    local attacker_entindex = uid_eindex(attacker)
 
-		return true
-	elseif text:match("^ws_send") then
-		local message = text:match("^ws_send (.*)$")
-
-		print("[WS] Sending message: ", message)
-		websocket_connection:send(message)
-
-		return true
-	end
+    if attacker_entindex == local_player() then
+        if hitsound_get == "Default" then
+            exec("playvol buttons\\arena_switch_press_02.wav 1")
+        elseif hitsound_get == "LUA error" then
+            exec("playvol ui\\weapon_cant_buy.wav 1")
+        elseif hitsound_get == "Warning" then
+            exec("playvol resource\\warning.wav 1")
+        elseif hitsound_get == "Custom" then
+            exec("playvol *\\bow_ding.wav 1")
+        end
+    end
 end)
